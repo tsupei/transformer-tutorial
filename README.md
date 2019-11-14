@@ -8,6 +8,7 @@ I crawl some articles from PTT-Gossiping [here](https://drive.google.com/file/d/
 
 # Structure
 
+```bash
 .
 ├── README.md
 ├── data
@@ -18,6 +19,7 @@ I crawl some articles from PTT-Gossiping [here](https://drive.google.com/file/d/
 └── pytorch
     ├── positional_encoding.py
     └── transformer.py
+```
 
 - `data` directory restore data and `transformer.pkl` is a example of trained model
 - `pytorch` directory lists useful models that I modified from [Pytorch](https://pytorch.org/tutorials/beginner/transformer_tutorial.html)
