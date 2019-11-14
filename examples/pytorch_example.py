@@ -2,6 +2,7 @@ import json
 import argparse
 import re
 from tqdm import tqdm
+from tensorboardX import SummaryWriter
 import torch
 import torch.nn as nn
 from pytorch.transformer import TransformerModel
@@ -112,19 +113,24 @@ def indexing(data, padding=False):
     idata = []
     for sentence in data:
         sentence = clean_data(sentence)
-        if len(sentence) < 50:
+        if len(sentence) < 80:
             print(sentence)
             continue
-        sentence = sentence[:50]
+        sentence = sentence[:80]
         index_arr = []
         if padding:
             index_arr.append(char_dict["<CLS>"])
+        flag = True
         for char in sentence:
-            if char == ' ':
+            if char == ' ' and flag:
                 char = "<SEP>"
+                flag = False
+            else:
+                flag = True
             index_arr.append(char_dict[char])
-        if padding:
+        if padding and flag:
             index_arr.append(char_dict["<SEP>"])
+        index_arr = index_arr[:50]
         idata.append(index_arr)
     return idata, char_dict, len(char_dict)
 
@@ -178,10 +184,15 @@ def save_model(model_state, path_to_file):
 
 
 def load_model(path_to_file):
-    return torch.load(path_to_file)["state"]
+    return torch.load(path_to_file)
 
 
 def train(args):
+    # Initialize tensorboard
+    writer = None
+    if args.tensorboard:
+        writer = SummaryWriter("runs/transformer")
+
     # Parameters
     path_to_file = args.data
     num_of_epochs = args.epoch
@@ -230,10 +241,20 @@ def train(args):
                     _, pred = torch.max(output[0], 1)
 
                     tqdm.write("Output: {}".format(origin_seq(char_dict, pred)))
+
+                    if args.tensorboard and writer:
+                        writer.add_text('Target', "".join(origin_seq(char_dict, target[0].data)), step+(epoch*len(samples)))
+                        writer.add_text('Output', "".join(origin_seq(char_dict, pred)), step+(epoch*len(samples)))
+
+                # output to tensorboard
+                if args.tensorboard and writer:
+                    writer.add_scalar('data/scalar1', loss.item(), step + (epoch*len(samples)))
+
                 loss.backward()
                 optimizer.step()
                 pg_bar.update(1)
                 step += 1
+    writer.close()
     save_model(model.state_dict(), args.model)
 
 
@@ -248,6 +269,8 @@ if __name__ == "__main__":
     parser.add_argument("--attention_head", "-ah", dest="attention_head", type=int, required=True)
     parser.add_argument("--dropout", "-dr", dest="dropout", type=float, required=True)
     parser.add_argument("--leaning_rate", "-lr", dest="learning_rate", type=float, required=True)
+
+    parser.add_argument("--tensorboard", "-tb", dest="tensorboard", action="store_true")
 
     parser.add_argument("--data", dest="data", required=True)
     parser.add_argument("--model", dest="model", required=True)
